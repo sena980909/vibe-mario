@@ -98,33 +98,33 @@ export class Level {
   }
 
   private setupLevel1Extras(): void {
-    // 3 hidden stars at elevated/secret positions
-    this.stars.push(new Star(5 * TILE_SIZE, 4 * TILE_SIZE));    // high up near start
-    this.stars.push(new Star(54 * TILE_SIZE, 3 * TILE_SIZE));   // above question blocks
-    this.stars.push(new Star(86 * TILE_SIZE, 5 * TILE_SIZE));   // hidden near end bricks
+    // 3 hidden stars
+    this.stars.push(new Star(7 * TILE_SIZE,  9 * TILE_SIZE));   // above initial Q blocks
+    this.stars.push(new Star(53 * TILE_SIZE, 6 * TILE_SIZE));   // above pipe area, reachable from row-7 bricks
+    this.stars.push(new Star(99 * TILE_SIZE, 9 * TILE_SIZE));   // above pre-flag brick row
 
-    // Warp zone: pipe at col 38-39 row 12 (Pipe 1) warps to bonus area
+    // Warp zone: pipe at col 22-23 (srcRow=12, top of 2-tall pipe) → level 2 entrance
     this.warpZones.push({
-      srcCol: 38,
+      srcCol: 22,
       srcRow: 12,
-      destLevel: 1,
-      destX: 125 * TILE_SIZE,
+      destLevel: 2,
+      destX: 2 * TILE_SIZE,
       destY: 11 * TILE_SIZE,
     });
   }
 
   private setupLevel2Extras(): void {
-    // 3 stars in hidden spots of the underground level
-    this.stars.push(new Star(7 * TILE_SIZE, 2 * TILE_SIZE));    // near ceiling start
-    this.stars.push(new Star(40 * TILE_SIZE, 6 * TILE_SIZE));   // mid-level hidden
-    this.stars.push(new Star(80 * TILE_SIZE, 7 * TILE_SIZE));   // near flag area
+    // 3 hidden stars
+    this.stars.push(new Star(5 * TILE_SIZE,  3 * TILE_SIZE));   // near ceiling at start
+    this.stars.push(new Star(40 * TILE_SIZE, 7 * TILE_SIZE));   // between brick platforms
+    this.stars.push(new Star(80 * TILE_SIZE, 7 * TILE_SIZE));   // near flag area above bricks
 
-    // Warp zone: pipe at col 45-46 row 11 warps to bonus spot
+    // Warp zone: pipe at col 44-45 (srcRow=12) → level 1 mid-point
     this.warpZones.push({
-      srcCol: 45,
-      srcRow: 11,
-      destLevel: 2,
-      destX: 95 * TILE_SIZE,
+      srcCol: 44,
+      srcRow: 12,
+      destLevel: 1,
+      destX: 50 * TILE_SIZE,
       destY: 11 * TILE_SIZE,
     });
   }
@@ -578,143 +578,130 @@ export class Level {
 
 // ==================== LEVEL 1 DATA ====================
 function createLevel1(): LevelData {
-  const COLS = 130; // Extended for bonus warp area
+  const COLS = 120;
   const ROWS = 15;
   const E = TILE_EMPTY;
   const G = TILE_GROUND;
   const B = TILE_BRICK;
   const Q = TILE_QUESTION;
-  const C = TILE_COIN;
   const TL = TILE_PIPE_TL;
   const TR = TILE_PIPE_TR;
   const BL = TILE_PIPE_BL;
   const BR = TILE_PIPE_BR;
-  void TILE_PLATFORM; // platform tiles placed directly via set()
+  void TILE_PLATFORM; // suppress unused-import warning
   const FB = TILE_FLAG_BASE;
   const FT = TILE_FLAG_TOP;
 
   const tiles: number[][] = Array.from({ length: ROWS }, () => Array(COLS).fill(E));
 
-  function set(row: number, col: number, val: number) {
-    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) tiles[row][col] = val;
+  function set(r: number, c: number, val: number) {
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) tiles[r][c] = val;
   }
   function row(r: number, c1: number, c2: number, val: number) {
     for (let c = c1; c <= c2; c++) set(r, c, val);
   }
 
-  // Ground floor (row 14 = last row)
-  row(14, 0, 119, G);
+  // ── Ground (rows 13 & 14, full width) ────────────────────────────────────
   row(13, 0, 119, G);
+  row(14, 0, 119, G);
 
-  // Start platform area
-  row(14, 0, 14, G);
+  // ── AREA 1 (cols 0-20) – Tutorial start ──────────────────────────────────
+  set(10, 6, Q);
+  // Brick row at row 10: cols 10,11, Q at 12, bricks 13,14
+  set(10, 10, B);
+  set(10, 11, B);
+  set(10, 12, Q);
+  set(10, 13, B);
+  set(10, 14, B);
 
-  // First steps / elevated platform
-  row(10, 16, 19, B);
-  set(10, 18, Q);
+  // ── AREA 2 (cols 20-45) – Pipe + enemies ─────────────────────────────────
+  // Pipe 2-tall: warp pipe (cols 22-23)
+  set(12, 22, TL); set(12, 23, TR);
+  set(13, 22, BL); set(13, 23, BR);
 
-  // Question blocks row
-  set(8, 22, Q);
-  set(8, 24, Q);
-  set(8, 26, Q);
-  // Hidden coin row above
-  set(5, 23, C);
-  set(5, 25, C);
+  // Q blocks at row 10: cols 25, 27, 29
+  set(10, 25, Q);
+  set(10, 27, Q);
+  set(10, 29, Q);
 
-  // Bricks
-  row(10, 28, 33, B);
-  set(10, 30, Q);
-  set(10, 32, Q);
+  // Brick row at row 10: cols 31-36 with Q at 34
+  set(10, 31, B);
+  set(10, 32, B);
+  set(10, 33, B);
+  set(10, 34, Q);
+  set(10, 35, B);
+  set(10, 36, B);
 
-  // Pipe 1 (short, 2 high) - warp pipe
-  set(12, 38, TL); set(12, 39, TR);
-  set(13, 38, BL); set(13, 39, BR);
+  // ── AREA 3 (cols 45-65) – Pipe 3-tall + elevated bricks ──────────────────
+  // Pipe 3-tall (cols 48-49)
+  set(11, 48, TL); set(11, 49, TR);
+  set(12, 48, BL); set(12, 49, BR);
+  set(13, 48, BL); set(13, 49, BR);
 
-  // Pipe 2 (taller, 3 high)
-  set(11, 45, TL); set(11, 46, TR);
-  set(12, 45, BL); set(12, 46, BR);
-  set(13, 45, BL); set(13, 46, BR);
+  // Brick row at row 10: cols 52-59 with Q at 53 and 56
+  row(10, 52, 59, B);
+  set(10, 53, Q);
+  set(10, 56, Q);
 
-  // Question blocks
-  set(8, 50, Q);
-  set(8, 52, Q);
-  set(8, 54, Q);
-  set(8, 56, Q);
-  // Coin row between blocks
-  set(6, 51, C);
-  set(6, 53, C);
-  set(6, 55, C);
+  // Second brick row at row 7: cols 57-61 (higher platform)
+  row(7, 57, 61, B);
+  set(7, 59, Q); // high-reward Q
 
-  // Brick ceiling platform
-  row(7, 58, 65, B);
-  set(7, 60, Q);
-  set(7, 62, Q);
+  // ── AREA 4 (cols 65-85) – Staircase platforms (bricks) ───────────────────
+  // Ascending stairs
+  row(12, 66, 68, B);   // 1 tile high
+  row(11, 69, 71, B);   // 2 tiles high
+  row(10, 72, 74, B);   // 3 tiles high
+  set(10, 73, Q);       // Q at top of stairs
 
-  // Gap area (no ground tiles from col 67-70) -- leave empty
+  // Descending stairs
+  row(11, 75, 77, B);
+  row(12, 78, 80, B);
 
-  // Elevated section
-  row(10, 68, 80, G);  // elevated ground
-  set(8, 70, Q);
-  set(8, 72, Q);
-  set(8, 74, B);
-  row(6, 72, 76, B);
-  set(6, 74, Q);
+  // ── AREA 5 (cols 85-110) – Pre-flag ──────────────────────────────────────
+  // Pipe 2-tall (cols 87-88)
+  set(12, 87, TL); set(12, 88, TR);
+  set(13, 87, BL); set(13, 88, BR);
 
-  // Pipe 3 on elevated section
-  set(8, 78, TL); set(8, 79, TR);
-  set(9, 78, BL); set(9, 79, BR);
+  // Q blocks at row 10
+  set(10, 91, Q);
+  set(10, 93, Q);
+  set(10, 95, Q);
 
-  // Drop back to main ground
-  row(14, 81, 119, G);
-  row(13, 81, 119, G);
+  // Brick row at row 10: cols 97-102 with Q at 99
+  row(10, 97, 102, B);
+  set(10, 99, Q);
 
-  // More coins floating
-  row(9, 83, 87, C);
-
-  // Brick platforms
-  row(10, 84, 90, B);
-  set(10, 86, Q);
-  set(10, 88, Q);
-
-  // Another pipe
-  set(12, 95, TL); set(12, 96, TR);
-  set(13, 95, BL); set(13, 96, BR);
-
-  // Pre-flag bricks
-  row(10, 100, 106, B);
-  set(10, 102, Q);
-  set(10, 104, Q);
-
-  // Flag pole area (cols 108-111)
+  // ── Flag pole (col 108) ───────────────────────────────────────────────────
   for (let r = 4; r <= 14; r++) {
-    set(r, 109, FB);
+    set(r, 108, FB);
   }
-  set(3, 109, FT);
+  set(3, 108, FT);
 
-  // Ground to end
-  row(14, 110, 119, G);
-  row(13, 110, 119, G);
-
-  // === BONUS AREA (beyond col 120) ===
-  row(14, 120, 129, G);
-  row(13, 120, 129, G);
-  row(10, 121, 128, B);
-  set(10, 123, Q);
-  set(10, 125, Q);
-  // Bonus coins
-  row(7, 122, 127, C);
-
+  // ── Enemies ───────────────────────────────────────────────────────────────
   const enemies: EnemyDef[] = [
-    { type: 'goomba', x: 20 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'goomba', x: 35 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'goomba', x: 42 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'koopa',  x: 55 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'goomba', x: 60 * TILE_SIZE, y: 8 * TILE_SIZE },
-    { type: 'goomba', x: 72 * TILE_SIZE, y: 8 * TILE_SIZE },
-    { type: 'goomba', x: 85 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'goomba', x: 92 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'koopa',  x: 98 * TILE_SIZE, y: 12 * TILE_SIZE },
-    { type: 'flyingKoopa', x: 75 * TILE_SIZE, y: 6 * TILE_SIZE },
+    // Area 1
+    { type: 'goomba',      x:  8 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 2
+    { type: 'goomba',      x: 21 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 26 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 28 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 3
+    { type: 'goomba',      x: 50 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 54 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 58 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'koopa',       x: 61 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 4
+    { type: 'goomba',      x: 67 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 73 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'koopa',       x: 76 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 79 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 5
+    { type: 'goomba',      x: 90 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 94 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 100 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'koopa',       x: 103 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'flyingKoopa', x:  78 * TILE_SIZE, y:  5 * TILE_SIZE },
   ];
 
   return {
@@ -748,133 +735,110 @@ function createLevel2(): LevelData {
 
   const tiles: number[][] = Array.from({ length: ROWS }, () => Array(COLS).fill(E));
 
-  function set(row: number, col: number, val: number) {
-    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) tiles[row][col] = val;
+  function set(r: number, c: number, val: number) {
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) tiles[r][c] = val;
   }
   function row(r: number, c1: number, c2: number, val: number) {
     for (let c = c1; c <= c2; c++) set(r, c, val);
   }
 
-  // Ceiling
+  // ── Ceiling (rows 0-1) ────────────────────────────────────────────────────
   row(0, 0, 99, S);
   row(1, 0, 99, S);
 
-  // Floor
+  // ── Floor (rows 13-14) ────────────────────────────────────────────────────
   row(13, 0, 99, G);
   row(14, 0, 99, G);
 
-  // Left entrance area
-  row(3, 0, 5, S);
-  row(3, 8, 14, S);
-  row(3, 18, 25, S);
+  // ── AREA 1 (cols 0-25) – Entrance ────────────────────────────────────────
+  // Ceiling hangs (leave ≥6 tiles gap for player to walk through)
+  row(2, 0, 6, S);
+  row(2, 10, 18, S);
 
-  // Mid height blocks
-  row(6, 4, 10, B);
-  set(6, 7, Q);
-  row(6, 15, 20, B);
-  set(6, 17, Q);
-  set(6, 19, Q);
+  // Brick platform at row 8 with Q blocks
+  row(8, 3, 8, B);
+  set(8, 5, Q);
+  set(8, 7, Q);
 
-  // Coins scattered
-  row(9, 22, 28, C);
-  set(8, 25, C);
-  set(7, 24, C);
-  set(7, 26, C);
+  // Coins at floor level (row 10)
+  for (let c = 3; c <= 8; c++) set(10, c, C);
 
-  // Underground pillars
-  row(4, 30, 30, S);
-  row(5, 30, 30, S);
-  row(6, 30, 30, S);
-  row(7, 30, 30, S);
-  row(8, 30, 30, S);
-  row(9, 30, 30, S);
-  row(10, 30, 30, S);
-  row(11, 30, 30, S);
+  // ── AREA 2 (cols 25-50) – Maze section ───────────────────────────────────
+  // Partial ceiling hang
+  row(2, 28, 35, S);
 
-  // Passage gap at row 12
-  row(4, 35, 35, S);
-  row(5, 35, 35, S);
-  row(6, 35, 35, S);
-  row(7, 35, 35, S);
-  row(8, 35, 35, S);
-  row(9, 35, 35, S);
-  row(10, 35, 35, S);
-  row(11, 35, 35, S);
-  row(12, 35, 35, S);
+  // Brick platform at row 8
+  row(8, 30, 38, B);
+  set(8, 32, Q);
+  set(8, 35, Q);
 
-  // Question blocks section
-  set(9, 37, Q);
-  set(9, 39, Q);
-  set(9, 41, Q);
-  set(7, 38, Q);
-  set(7, 40, Q);
+  // Wall at col 42 with 3-tile gap (rows 10-12 open, 96px > Super Mario 32px)
+  for (let r = 2; r <= 9; r++) set(r, 42, S);
 
-  // Pipe obstacles - first pipe is warp pipe
-  set(11, 45, TL); set(11, 46, TR);
-  set(12, 45, BL); set(12, 46, BR);
+  // Pipe 2-tall – warp pipe (cols 44-45, row 12 = top)
+  set(12, 44, TL); set(12, 45, TR);
+  set(13, 44, BL); set(13, 45, BR);
 
-  set(10, 50, TL); set(10, 51, TR);
-  set(11, 50, BL); set(11, 51, BR);
-  set(12, 50, BL); set(12, 51, BR);
+  // Coins at row 10
+  row(10, 33, 40, C);
 
-  // More brick platforms
-  row(8, 54, 60, B);
-  set(8, 56, Q);
-  set(8, 58, Q);
-  row(5, 58, 65, S);
+  // ── AREA 3 (cols 50-75) – Vertical section ───────────────────────────────
+  // Wall at col 55 with 3-tile gap (rows 10-12 open)
+  for (let r = 2; r <= 9; r++) set(r, 55, S);
 
-  // Coins
-  row(10, 62, 68, C);
+  // Brick platforms at varying heights
+  row(8, 52, 58, B);
+  set(8, 54, Q);
 
-  // Brick maze
-  row(8, 65, 70, B);
-  row(5, 68, 75, B);
-  set(5, 70, Q);
-  set(5, 72, Q);
-  set(5, 74, Q);
+  // High ceiling extension
+  row(6, 60, 66, S);
 
-  // More pillars
-  for (let r = 4; r <= 11; r++) {
-    set(r, 72, S);
-    set(r, 78, S);
-  }
+  row(9, 62, 68, B);
+  set(9, 64, Q);
+  set(9, 66, Q);
 
-  // Open area near flag
-  set(9, 80, Q);
-  set(9, 82, Q);
-  set(9, 84, Q);
-  row(9, 86, 90, C);
+  // Coins along floor-level area
+  row(11, 52, 60, C);
 
-  // Flag pole
-  for (let r = 4; r <= 14; r++) {
+  // ── AREA 4 (cols 75-92) – Pre-flag ───────────────────────────────────────
+  row(8, 77, 84, B);
+  set(8, 79, Q);
+  set(8, 81, Q);
+  set(8, 83, Q);
+
+  // Coins at row 11
+  row(11, 77, 88, C);
+
+  // ── Flag pole (col 92) ────────────────────────────────────────────────────
+  // Ceiling at rows 0-1 stays; flag starts at row 3 (FT) / rows 3-14 (FB)
+  for (let r = 3; r <= 14; r++) {
     set(r, 92, FB);
   }
-  set(3, 92, FT);
+  set(2, 92, FT);
 
-  // Ground to end
-  row(14, 92, 99, G);
-  row(13, 92, 99, G);
-
+  // ── Enemies ───────────────────────────────────────────────────────────────
   const enemies: EnemyDef[] = [
-    { type: 'goomba', x: 6 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 12 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'koopa',  x: 22 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 32 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 36 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 42 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'koopa',  x: 48 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 55 * TILE_SIZE, y: 7 * TILE_SIZE },
-    { type: 'goomba', x: 63 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 68 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'koopa',  x: 75 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'goomba', x: 82 * TILE_SIZE, y: 11 * TILE_SIZE },
-    { type: 'flyingKoopa', x: 58 * TILE_SIZE, y: 5 * TILE_SIZE },
+    // Area 1
+    { type: 'goomba',      x:  6 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 14 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 2
+    { type: 'goomba',      x: 31 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 37 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 46 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'koopa',       x: 42 * TILE_SIZE, y: 12 * TILE_SIZE },
+    // Area 3
+    { type: 'goomba',      x: 54 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 60 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'goomba',      x: 67 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'flyingKoopa', x: 65 * TILE_SIZE, y:  5 * TILE_SIZE },
+    // Area 4
+    { type: 'koopa',       x: 78 * TILE_SIZE, y: 12 * TILE_SIZE },
+    { type: 'koopa',       x: 83 * TILE_SIZE, y: 12 * TILE_SIZE },
   ];
 
   const movingPlatforms: MovingPlatformDef[] = [
-    { x: 38 * TILE_SIZE, y: 9 * TILE_SIZE, width: 64, moveX: 1, moveY: 0, rangeX: 80, rangeY: 0 },
-    { x: 60 * TILE_SIZE, y: 7 * TILE_SIZE, width: 64, moveX: 0, moveY: 1, rangeX: 0, rangeY: 64 },
-    { x: 78 * TILE_SIZE, y: 8 * TILE_SIZE, width: 96, moveX: 1, moveY: 0, rangeX: 96, rangeY: 0 },
+    { x: 35 * TILE_SIZE, y: 9 * TILE_SIZE, width: 64, moveX: 1, moveY: 0, rangeX: 80, rangeY: 0 },
+    { x: 58 * TILE_SIZE, y: 7 * TILE_SIZE, width: 64, moveX: 0, moveY: 1, rangeX: 0, rangeY: 64 },
   ];
 
   return {
