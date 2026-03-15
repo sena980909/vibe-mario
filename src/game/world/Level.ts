@@ -12,6 +12,7 @@ import { PowerUp } from '../entities/PowerUp';
 import { Fireball } from '../entities/Fireball';
 import { Particle } from '../entities/Particle';
 import { Platform } from '../entities/Platform';
+import { Star } from '../entities/Star';
 import { rectOverlap } from '../types';
 import { eventBus } from '../engine/EventBus';
 
@@ -42,6 +43,14 @@ export interface MovingPlatformDef {
   rangeY: number;
 }
 
+export interface WarpZone {
+  srcCol: number;
+  srcRow: number;
+  destLevel: number;
+  destX: number;
+  destY: number;
+}
+
 export class Level {
   private tileMap: TileMap;
   private data: LevelData;
@@ -51,7 +60,10 @@ export class Level {
   fireballs: Fireball[] = [];
   particles: Particle[] = [];
   platforms: Platform[] = [];
+  stars: Star[] = [];
   private flagTouched = false;
+  private warpZones: WarpZone[] = [];
+  private warpCooldown = 0;
 
   constructor(num: number) {
     this.data = num === 2 ? createLevel2() : createLevel1();
@@ -76,6 +88,45 @@ export class Level {
         }
       }
     }
+
+    // Setup level-specific stars and warp zones
+    if (num === 2) {
+      this.setupLevel2Extras();
+    } else {
+      this.setupLevel1Extras();
+    }
+  }
+
+  private setupLevel1Extras(): void {
+    // 3 hidden stars at elevated/secret positions
+    this.stars.push(new Star(5 * TILE_SIZE, 4 * TILE_SIZE));    // high up near start
+    this.stars.push(new Star(54 * TILE_SIZE, 3 * TILE_SIZE));   // above question blocks
+    this.stars.push(new Star(86 * TILE_SIZE, 5 * TILE_SIZE));   // hidden near end bricks
+
+    // Warp zone: pipe at col 38-39 row 12 (Pipe 1) warps to bonus area
+    this.warpZones.push({
+      srcCol: 38,
+      srcRow: 12,
+      destLevel: 1,
+      destX: 125 * TILE_SIZE,
+      destY: 11 * TILE_SIZE,
+    });
+  }
+
+  private setupLevel2Extras(): void {
+    // 3 stars in hidden spots of the underground level
+    this.stars.push(new Star(7 * TILE_SIZE, 2 * TILE_SIZE));    // near ceiling start
+    this.stars.push(new Star(40 * TILE_SIZE, 6 * TILE_SIZE));   // mid-level hidden
+    this.stars.push(new Star(80 * TILE_SIZE, 7 * TILE_SIZE));   // near flag area
+
+    // Warp zone: pipe at col 45-46 row 11 warps to bonus spot
+    this.warpZones.push({
+      srcCol: 45,
+      srcRow: 11,
+      destLevel: 2,
+      destX: 95 * TILE_SIZE,
+      destY: 11 * TILE_SIZE,
+    });
   }
 
   getSpawnPoint(): { x: number; y: number } {
@@ -89,6 +140,8 @@ export class Level {
 
   update(dt: number, player: Player, _camera: Camera): void {
     this.tileMap.updateBounces(dt);
+
+    if (this.warpCooldown > 0) this.warpCooldown -= dt;
 
     // Update platforms
     for (const p of this.platforms) {
@@ -148,6 +201,22 @@ export class Level {
       }
     }
 
+    // Update stars + check collision
+    for (let i = 0; i < this.stars.length; i++) {
+      const star = this.stars[i];
+      star.update(dt);
+      if (!star.collected) {
+        const bounds = star.getBounds();
+        if (rectOverlap(player, bounds)) {
+          star.collected = true;
+          eventBus.emit('collectStar', i);
+          eventBus.emit('playSound', 'star');
+          eventBus.emit('addScore', 1000);
+          this.spawnStarParticles(star.x + star.width / 2, star.y + star.height / 2);
+        }
+      }
+    }
+
     // Player vs coins
     for (const c of this.coins) {
       if (!c.collected && rectOverlap(player, c)) {
@@ -189,6 +258,11 @@ export class Level {
     // Player vs tiles (handled in player update, but also check special tiles)
     this.checkPlayerTileInteraction(player);
 
+    // Check warp zones
+    if (this.warpCooldown <= 0) {
+      this.checkWarpZones(player);
+    }
+
     // Check flag
     if (!this.flagTouched) {
       const flagCol = this.getFlagCol();
@@ -198,6 +272,23 @@ export class Level {
           this.flagTouched = true;
           eventBus.emit('playerWon');
         }
+      }
+    }
+  }
+
+  private checkWarpZones(player: Player): void {
+    if (!player.isPressingDown) return;
+    if (!player.onGround) return;
+
+    const playerCol = this.tileMap.worldToTileCol(player.x + player.width / 2);
+    const playerRow = this.tileMap.worldToTileRow(player.y + player.height);
+
+    for (const warp of this.warpZones) {
+      // Check if player stands on top of pipe (pipe top row = srcRow, player bottom = srcRow)
+      if (playerRow === warp.srcRow && (playerCol === warp.srcCol || playerCol === warp.srcCol + 1)) {
+        this.warpCooldown = 2;
+        eventBus.emit('warpPlayer', { destLevel: warp.destLevel, destX: warp.destX, destY: warp.destY });
+        return;
       }
     }
   }
@@ -290,6 +381,14 @@ export class Level {
       const vx = (Math.random() - 0.5) * 60;
       const vy = -80 - Math.random() * 60;
       this.particles.push(new Particle(cx, cy, vx, vy, '#ffd700', 0.6));
+    }
+  }
+
+  spawnStarParticles(cx: number, cy: number): void {
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const speed = 100 + Math.random() * 80;
+      this.particles.push(new Particle(cx, cy, Math.cos(angle) * speed, Math.sin(angle) * speed - 50, '#ffd700', 0.8));
     }
   }
 
@@ -468,12 +567,18 @@ export class Level {
     for (const p of this.particles) {
       p.draw(ctx);
     }
+    // Draw uncollected stars
+    for (const star of this.stars) {
+      if (!star.collected) {
+        star.draw(ctx);
+      }
+    }
   }
 }
 
 // ==================== LEVEL 1 DATA ====================
 function createLevel1(): LevelData {
-  const COLS = 120;
+  const COLS = 130; // Extended for bonus warp area
   const ROWS = 15;
   const E = TILE_EMPTY;
   const G = TILE_GROUND;
@@ -521,7 +626,7 @@ function createLevel1(): LevelData {
   set(10, 30, Q);
   set(10, 32, Q);
 
-  // Pipe 1 (short, 2 high)
+  // Pipe 1 (short, 2 high) - warp pipe
   set(12, 38, TL); set(12, 39, TR);
   set(13, 38, BL); set(13, 39, BR);
 
@@ -589,6 +694,15 @@ function createLevel1(): LevelData {
   // Ground to end
   row(14, 110, 119, G);
   row(13, 110, 119, G);
+
+  // === BONUS AREA (beyond col 120) ===
+  row(14, 120, 129, G);
+  row(13, 120, 129, G);
+  row(10, 121, 128, B);
+  set(10, 123, Q);
+  set(10, 125, Q);
+  // Bonus coins
+  row(7, 122, 127, C);
 
   const enemies: EnemyDef[] = [
     { type: 'goomba', x: 20 * TILE_SIZE, y: 12 * TILE_SIZE },
@@ -695,7 +809,7 @@ function createLevel2(): LevelData {
   set(7, 38, Q);
   set(7, 40, Q);
 
-  // Pipe obstacles
+  // Pipe obstacles - first pipe is warp pipe
   set(11, 45, TL); set(11, 46, TR);
   set(12, 45, BL); set(12, 46, BR);
 

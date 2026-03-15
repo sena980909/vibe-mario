@@ -3,7 +3,12 @@
     "allow": [
       "Bash(cd:*)",
       "Bash(pkill:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

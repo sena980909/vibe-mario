@@ -20,6 +20,7 @@ export class Player implements PlayerContext {
   facingRight: boolean = true;
   onGround: boolean = false;
   jumpHoldTimer: number = 0;
+  isPressingDown: boolean = false;
 
   private state: PlayerStateInterface;
   private inputManager: InputManager;
@@ -124,6 +125,7 @@ export class Player implements PlayerContext {
     }
 
     const input = this.inputManager.getState();
+    this.isPressingDown = input.down ?? false;
 
     // Flicker timer for invincibility
     if (this.state instanceof HurtState) {

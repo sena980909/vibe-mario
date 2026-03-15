@@ -7,11 +7,13 @@ export interface HUDData {
   stage: number;
   powerLevel: number;
   canvasWidth: number;
+  starsCollected?: number;
+  totalStars?: number;
 }
 
 export class HUD {
   draw(ctx: CanvasRenderingContext2D, data: HUDData): void {
-    const { score, coins, lives, timer, stage, canvasWidth } = data;
+    const { score, coins, lives, timer, stage, canvasWidth, starsCollected = 0, totalStars = 3 } = data;
 
     // Background bar
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -28,7 +30,7 @@ export class HUD {
     ctx.fillText(score.toString().padStart(6, '0'), 12, 26);
 
     // Coins (center-left)
-    const coinX = canvasWidth / 4;
+    const coinX = canvasWidth / 5;
     ctx.fillStyle = '#ffd700';
     ctx.beginPath();
     ctx.arc(coinX, 18, 7, 0, Math.PI * 2);
@@ -42,9 +44,17 @@ export class HUD {
     ctx.textAlign = 'left';
     ctx.fillText(`x${coins.toString().padStart(2, '0')}`, coinX + 12, 18);
 
+    // Stars display
+    const starX = canvasWidth / 5 + 80;
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`★ ${starsCollected}/${totalStars}`, starX, 18);
+
     // WORLD (center)
     const worldX = canvasWidth / 2;
     ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('WORLD', worldX, 12);
     ctx.fillStyle = '#ffdd00';

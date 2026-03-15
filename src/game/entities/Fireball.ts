@@ -8,12 +8,24 @@ export class Fireball {
   vx: number;
   vy: number = -100;
   dead: boolean = false;
+  active: boolean = true;
   private animTimer: number = 0;
 
   constructor(x: number, y: number, vx: number) {
     this.x = x;
     this.y = y;
     this.vx = vx;
+  }
+
+  reset(...args: unknown[]): void {
+    const [x, y, vx] = args as [number, number, number];
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = -100;
+    this.dead = false;
+    this.active = true;
+    this.animTimer = 0;
   }
 
   update(dt: number, tileMap: TileMap): void {
@@ -42,19 +54,23 @@ export class Fireball {
     // Kill if hits wall
     if (isSolid(tileMap.getTile(rowMid, colL)) || isSolid(tileMap.getTile(rowMid, colR))) {
       this.dead = true;
+      this.active = false;
     }
 
     // Kill if hits ceiling
     if (isSolid(tileMap.getTile(rowTop, col))) {
       this.dead = true;
+      this.active = false;
     }
 
     // Off screen bounds
     if (this.x < -100 || this.x > tileMap.getWidthPx() + 100) {
       this.dead = true;
+      this.active = false;
     }
     if (this.y > tileMap.getHeightPx() + 50) {
       this.dead = true;
+      this.active = false;
     }
     void this.animTimer;
   }

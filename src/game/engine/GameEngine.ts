@@ -8,9 +8,18 @@ import { HUD } from '../ui/HUD';
 import { PauseMenu } from '../ui/PauseMenu';
 import { GameOverScreen } from '../ui/GameOverScreen';
 import { SoundManager } from './SoundManager';
+import { DebugOverlay } from './DebugOverlay';
+import type { CheatCommand } from './DebugOverlay';
+import { Enemy } from '../entities/Enemy';
 import type { SaveData } from '../types';
 
 export type GameState = 'playing' | 'paused' | 'gameover' | 'victory' | 'transitioning';
+
+// Extended save data with stars
+interface ExtendedSaveData extends SaveData {
+  stars?: Record<string, number>;
+  volume?: number;
+}
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -24,6 +33,7 @@ export class GameEngine {
   private hud: HUD;
   private pauseMenu: PauseMenu;
   private gameOverScreen: GameOverScreen;
+  private debugOverlay: DebugOverlay;
 
   private rafId: number = 0;
   private lastTime: number = 0;
@@ -39,6 +49,16 @@ export class GameEngine {
   private transitionTimer = 0;
   private stompCombo = 0;
   private stompComboTimer = 0;
+  private currentFPS = 60;
+
+  // Stars tracking: key = "stage_starIndex" => count collected
+  private starsCollected: Record<string, number> = {};
+
+  // Mouse event handlers for pause menu
+  private boundMouseDown: (e: MouseEvent) => void;
+  private boundMouseMove: (e: MouseEvent) => void;
+  private boundMouseUp: (e: MouseEvent) => void;
+  private boundKeyDown: (e: KeyboardEvent) => void;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -50,9 +70,73 @@ export class GameEngine {
     this.hud = new HUD();
     this.pauseMenu = new PauseMenu();
     this.gameOverScreen = new GameOverScreen();
+    this.debugOverlay = new DebugOverlay();
+
+    this.boundMouseDown = this.onMouseDown.bind(this);
+    this.boundMouseMove = this.onMouseMove.bind(this);
+    this.boundMouseUp = this.onMouseUp.bind(this);
+    this.boundKeyDown = this.onKeyDown.bind(this);
+    canvas.addEventListener('mousedown', this.boundMouseDown);
+    canvas.addEventListener('mousemove', this.boundMouseMove);
+    canvas.addEventListener('mouseup', this.boundMouseUp);
+    window.addEventListener('keydown', this.boundKeyDown);
 
     this.setupEventListeners();
     this.loadSave();
+  }
+
+  private getCanvasMousePos(e: MouseEvent): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  }
+
+  private onMouseDown(e: MouseEvent): void {
+    if (this.gameState !== 'paused') return;
+    const { x, y } = this.getCanvasMousePos(e);
+    const result = this.pauseMenu.handleClick(x, y, this.canvas.width, this.canvas.height);
+    if (result === 'resume') {
+      this.gameState = 'playing';
+      this.soundManager.startBGM(this.level?.isUnderground() ? 'underground' : 'overworld');
+    } else if (result === 'menu') {
+      this.soundManager.stopBGM();
+      this.resetGame();
+    }
+    // Sync volume
+    this.soundManager.setVolume(this.pauseMenu.getVolume());
+  }
+
+  private onMouseMove(e: MouseEvent): void {
+    if (this.gameState !== 'paused') return;
+    const { x, y } = this.getCanvasMousePos(e);
+    this.pauseMenu.handleMouseMove(x, y, this.canvas.width, this.canvas.height);
+    this.soundManager.setVolume(this.pauseMenu.getVolume());
+  }
+
+  private onMouseUp(_e: MouseEvent): void {
+    this.pauseMenu.handleMouseUp();
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    if (!this.debugOverlay.isEnabled()) return;
+    if (e.code === 'Backquote') {
+      this.debugOverlay.activateCheatConsole();
+      return;
+    }
+    if (this.debugOverlay.isCheatConsoleActive()) {
+      let key = e.key;
+      if (e.code === 'Enter') key = 'Enter';
+      else if (e.code === 'Escape') key = 'Escape';
+      else if (e.code === 'Backspace') key = 'Backspace';
+      const cmd = this.debugOverlay.handleCheatInput(key);
+      if (cmd) {
+        this.dispatchCheatCommand(cmd);
+      }
+    }
   }
 
   private setupEventListeners(): void {
@@ -63,17 +147,49 @@ export class GameEngine {
     eventBus.on('stompEnemy', () => this.onStompEnemy());
     eventBus.on('levelComplete', () => this.onLevelComplete());
     eventBus.on('playSound', (name: unknown) => this.soundManager.play(name as string));
+    eventBus.on('collectStar', (idx: unknown) => this.onCollectStar(idx as number));
+    eventBus.on('warpPlayer', (info: unknown) => this.onWarpPlayer(info as { destLevel: number; destX: number; destY: number }));
+  }
+
+  private onCollectStar(idx: number): void {
+    const key = `${this.stageNumber}_${idx}`;
+    this.starsCollected[key] = 1;
+    this.debugOverlay.addLog(`Star ${idx + 1} collected!`);
+    this.saveGame();
+  }
+
+  private onWarpPlayer(info: { destLevel: number; destX: number; destY: number }): void {
+    if (!this.player) return;
+    if (info.destLevel !== this.stageNumber) {
+      // Warp to different level
+      this.stageNumber = info.destLevel;
+      this.loadLevel(this.stageNumber);
+      if (this.player) {
+        this.player.x = info.destX;
+        this.player.y = info.destY;
+      }
+    } else {
+      // Warp within same level
+      this.player.x = info.destX;
+      this.player.y = info.destY;
+    }
+    this.debugOverlay.addLog(`Warped to (${Math.round(info.destX)}, ${Math.round(info.destY)})`);
   }
 
   private loadSave(): void {
     try {
       const raw = localStorage.getItem('marioSave');
       if (raw) {
-        const data: SaveData = JSON.parse(raw);
+        const data: ExtendedSaveData = JSON.parse(raw);
         this.stageNumber = data.stage ?? 1;
         this.score = data.score ?? 0;
         this.lives = data.lives ?? 3;
         this.highScore = data.highScore ?? 0;
+        this.starsCollected = data.stars ?? {};
+        if (data.volume !== undefined) {
+          this.soundManager.setVolume(data.volume);
+          this.pauseMenu.setVolume(data.volume);
+        }
       }
     } catch {
       // ignore
@@ -81,11 +197,13 @@ export class GameEngine {
   }
 
   private saveGame(): void {
-    const data: SaveData = {
+    const data: ExtendedSaveData = {
       stage: this.stageNumber,
       score: this.score,
       lives: this.lives,
       highScore: this.highScore,
+      stars: this.starsCollected,
+      volume: this.soundManager.getVolume(),
     };
     localStorage.setItem('marioSave', JSON.stringify(data));
   }
@@ -105,6 +223,9 @@ export class GameEngine {
     this.stompCombo = 0;
     this.stompComboTimer = 0;
     this.gameState = 'playing';
+
+    // Start appropriate BGM
+    this.soundManager.startBGM(this.level.isUnderground() ? 'underground' : 'overworld');
   }
 
   start(): void {
@@ -120,6 +241,10 @@ export class GameEngine {
     dt = Math.min(dt, 0.05); // cap to prevent spiral of death
 
     this.assetManager.resumeAudio();
+
+    // Update debug FPS
+    this.debugOverlay.updateFPS(dt);
+    if (dt > 0) this.currentFPS = Math.round(1 / dt);
 
     if (this.gameState === 'playing') {
       this.update(dt);
@@ -138,13 +263,21 @@ export class GameEngine {
     const input = this.inputManager.getState();
     this.inputManager.update(); // update prevKeys AFTER reading state this frame
 
+    // Debug toggle (backtick)
+    if (input.debugTogglePressed) {
+      this.debugOverlay.toggle();
+      this.debugOverlay.addLog(`Debug ${this.debugOverlay.isEnabled() ? 'ON' : 'OFF'}`);
+    }
+
     // Pause toggle
     if (input.pause && !this.pauseJustPressed) {
       this.pauseJustPressed = true;
       if (this.gameState === 'playing') {
         this.gameState = 'paused';
+        this.soundManager.stopBGM();
       } else if (this.gameState === 'paused') {
         this.gameState = 'playing';
+        this.soundManager.startBGM(this.level?.isUnderground() ? 'underground' : 'overworld');
       }
     }
     if (!input.pause) {
@@ -164,6 +297,10 @@ export class GameEngine {
       this.timer = Math.max(0, this.timer - 1);
       if (this.timer === 0) {
         this.player.kill();
+      }
+      // Switch to hurry BGM at timer < 100
+      if (this.timer === 99) {
+        this.soundManager.startBGM('boss');
       }
     }
 
@@ -185,6 +322,17 @@ export class GameEngine {
     if (this.player.y > this.level.getHeightPx() + 100) {
       this.player.kill();
     }
+
+    // Handle cheat commands if debug is enabled
+    // (cheat console text input is handled in keydown listener via DebugOverlay)
+  }
+
+  private getStarsCollectedForStage(): number {
+    let count = 0;
+    for (const key of Object.keys(this.starsCollected)) {
+      if (key.startsWith(`${this.stageNumber}_`)) count++;
+    }
+    return count;
   }
 
   private render(): void {
@@ -215,6 +363,8 @@ export class GameEngine {
         stage: this.stageNumber,
         powerLevel: this.player.powerLevel,
         canvasWidth: canvas.width,
+        starsCollected: this.getStarsCollectedForStage(),
+        totalStars: 3,
       });
     }
 
@@ -235,10 +385,36 @@ export class GameEngine {
       ctx.font = '20px monospace';
       ctx.fillText(`SCORE: ${this.score}`, canvas.width / 2, canvas.height / 2 + 20);
     }
+
+    // Debug overlay is always on top
+    const entityCount = this.level
+      ? this.level.enemies.length + this.level.coins.length + this.level.particles.length + this.level.fireballs.length
+      : 0;
+
+    // We need to translate back to screen space for the player context
+    if (this.player && this.level) {
+      // Draw debug overlay using screen-space player coords
+      const screenPlayer = {
+        x: this.player.x - this.camera.x,
+        y: this.player.y - this.camera.y,
+        width: this.player.width,
+        height: this.player.height,
+        vx: this.player.vx,
+        vy: this.player.vy,
+        powerLevel: this.player.powerLevel,
+        facingRight: this.player.facingRight,
+        onGround: this.player.onGround,
+        jumpHoldTimer: this.player.jumpHoldTimer,
+      };
+      this.debugOverlay.draw(ctx, canvas.width, canvas.height, screenPlayer, entityCount, this.currentFPS);
+    } else {
+      this.debugOverlay.draw(ctx, canvas.width, canvas.height, null, entityCount, this.currentFPS);
+    }
   }
 
   private onPlayerDied(): void {
     this.lives--;
+    this.soundManager.stopBGM();
     this.soundManager.play('die');
     if (this.lives <= 0) {
       if (this.score > this.highScore) {
@@ -260,7 +436,9 @@ export class GameEngine {
     this.addScore(timeBonus);
     this.gameState = 'transitioning';
     this.transitionTimer = 3;
+    this.soundManager.stopBGM();
     this.soundManager.play('levelClear');
+    this.debugOverlay.addLog('Level complete!');
   }
 
   private onLevelComplete(): void {
@@ -271,9 +449,11 @@ export class GameEngine {
     this.coins++;
     this.addScore(100);
     this.soundManager.play('coin');
+    this.debugOverlay.addLog(`Coin collected (${this.coins})`);
     if (this.coins >= 100) {
       this.coins -= 100;
       this.lives++;
+      this.debugOverlay.addLog('1-UP! Extra life!');
     }
   }
 
@@ -284,6 +464,7 @@ export class GameEngine {
     const idx = Math.min(this.stompCombo - 1, pts.length - 1);
     this.addScore(pts[idx]);
     this.soundManager.play('stomp');
+    this.debugOverlay.addLog(`Enemy stomped! +${pts[idx]}`);
   }
 
   private addScore(pts: number): void {
@@ -294,10 +475,12 @@ export class GameEngine {
   }
 
   resetGame(): void {
+    this.soundManager.stopBGM();
     this.score = 0;
     this.lives = 3;
     this.coins = 0;
     this.stageNumber = 1;
+    this.starsCollected = {};
     this.loadLevel(1);
   }
 
@@ -305,10 +488,43 @@ export class GameEngine {
     return this.gameState;
   }
 
+  // Dispatch cheat commands from DebugOverlay
+  private dispatchCheatCommand(cmd: CheatCommand | null): void {
+    if (!cmd) return;
+
+    switch (cmd.type) {
+      case 'nextStage':
+        this.stageNumber = (this.stageNumber % 2) + 1;
+        this.loadLevel(this.stageNumber);
+        this.debugOverlay.addLog(`Warped to stage ${this.stageNumber}`);
+        break;
+      case 'powerUp':
+        if (this.player) {
+          this.player.powerLevel = Math.max(0, Math.min(2, cmd.level));
+          this.debugOverlay.addLog(`Power set to ${cmd.level}`);
+        }
+        break;
+      case 'spawnEnemy':
+        if (this.level) {
+          this.level.enemies.push(new Enemy('goomba', cmd.x, cmd.y));
+          this.debugOverlay.addLog(`Enemy spawned at (${cmd.x}, ${cmd.y})`);
+        }
+        break;
+      case 'setGravity':
+        this.debugOverlay.addLog(`Gravity: ${cmd.value} (engine N/A)`);
+        break;
+    }
+  }
+
   destroy(): void {
     cancelAnimationFrame(this.rafId);
     this.inputManager.destroy();
     this.assetManager.destroy();
+    this.soundManager.stopBGM();
+    this.canvas.removeEventListener('mousedown', this.boundMouseDown);
+    this.canvas.removeEventListener('mousemove', this.boundMouseMove);
+    this.canvas.removeEventListener('mouseup', this.boundMouseUp);
+    window.removeEventListener('keydown', this.boundKeyDown);
     eventBus.clear();
   }
 }

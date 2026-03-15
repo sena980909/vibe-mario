@@ -4,8 +4,10 @@ export interface InputState {
   jump: boolean;
   shoot: boolean;
   pause: boolean;
+  down: boolean;
   jumpPressed: boolean;  // just pressed this frame
   shootPressed: boolean; // just pressed this frame
+  debugTogglePressed: boolean; // backtick key
 }
 
 export class InputManager {
@@ -52,8 +54,10 @@ export class InputManager {
       jump: this.isDown('Space') || this.isDown('ArrowUp') || this.isDown('KeyW'),
       shoot: this.isDown('KeyZ') || this.isDown('KeyX'),
       pause: this.isDown('Escape'),
+      down: this.isDown('ArrowDown') || this.isDown('KeyS'),
       jumpPressed: this.isJustPressed('Space') || this.isJustPressed('ArrowUp') || this.isJustPressed('KeyW'),
       shootPressed: this.isJustPressed('KeyZ') || this.isJustPressed('KeyX'),
+      debugTogglePressed: this.isJustPressed('Backquote'),
     };
   }
 
