@@ -119,7 +119,6 @@ export class GameEngine {
     this.lastTime = currentTime;
     dt = Math.min(dt, 0.05); // cap to prevent spiral of death
 
-    this.inputManager.update();
     this.assetManager.resumeAudio();
 
     if (this.gameState === 'playing') {
@@ -137,6 +136,7 @@ export class GameEngine {
     }
 
     const input = this.inputManager.getState();
+    this.inputManager.update(); // update prevKeys AFTER reading state this frame
 
     // Pause toggle
     if (input.pause && !this.pauseJustPressed) {
