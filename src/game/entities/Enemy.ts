@@ -68,7 +68,7 @@ export class Enemy {
   update(dt: number, tileMap: TileMap, platforms: Platform[]): void {
     if (this.dead) {
       this.deathTimer -= dt;
-      this.vy += 980 * dt;
+      this.vy += 800 * dt;
       this.y += this.vy * dt;
       return;
     }
@@ -97,8 +97,8 @@ export class Enemy {
     }
 
     // Apply gravity
-    this.vy += 980 * dt;
-    if (this.vy > 600) this.vy = 600;
+    this.vy += 800 * dt;
+    if (this.vy > 500) this.vy = 500;
 
     // Move X
     this.x += this.vx * dt;

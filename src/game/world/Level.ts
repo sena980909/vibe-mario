@@ -98,10 +98,10 @@ export class Level {
   }
 
   private setupLevel1Extras(): void {
-    // 3 hidden stars
-    this.stars.push(new Star(7 * TILE_SIZE,  9 * TILE_SIZE));   // above initial Q blocks
-    this.stars.push(new Star(53 * TILE_SIZE, 6 * TILE_SIZE));   // above pipe area, reachable from row-7 bricks
-    this.stars.push(new Star(99 * TILE_SIZE, 9 * TILE_SIZE));   // above pre-flag brick row
+    // 3 hidden stars at reachable positions
+    this.stars.push(new Star(12 * TILE_SIZE,  9 * TILE_SIZE));  // above the brick row at row 10 cols 10-14
+    this.stars.push(new Star(56 * TILE_SIZE,  8 * TILE_SIZE));  // above high bricks at row 7 in area 3
+    this.stars.push(new Star(100 * TILE_SIZE, 9 * TILE_SIZE));  // above brick at row 10 near flag area
 
     // Warp zone: pipe at col 22-23 (srcRow=12, top of 2-tall pipe) → level 2 entrance
     this.warpZones.push({
@@ -114,10 +114,10 @@ export class Level {
   }
 
   private setupLevel2Extras(): void {
-    // 3 hidden stars
-    this.stars.push(new Star(5 * TILE_SIZE,  3 * TILE_SIZE));   // near ceiling at start
-    this.stars.push(new Star(40 * TILE_SIZE, 7 * TILE_SIZE));   // between brick platforms
-    this.stars.push(new Star(80 * TILE_SIZE, 7 * TILE_SIZE));   // near flag area above bricks
+    // 3 hidden stars at reachable positions
+    this.stars.push(new Star(5 * TILE_SIZE,  10 * TILE_SIZE));  // near floor level at start, easy to get
+    this.stars.push(new Star(38 * TILE_SIZE,  7 * TILE_SIZE));  // above moving platform
+    this.stars.push(new Star(80 * TILE_SIZE,  7 * TILE_SIZE));  // near flag, reachable from bricks
 
     // Warp zone: pipe at col 44-45 (srcRow=12) → level 1 mid-point
     this.warpZones.push({

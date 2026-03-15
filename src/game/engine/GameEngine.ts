@@ -101,7 +101,7 @@ export class GameEngine {
     const result = this.pauseMenu.handleClick(x, y, this.canvas.width, this.canvas.height);
     if (result === 'resume') {
       this.gameState = 'playing';
-      this.soundManager.startBGM(this.level?.isUnderground() ? 'underground' : 'overworld');
+      this.soundManager.resumeBGM();
     } else if (result === 'menu') {
       this.soundManager.stopBGM();
       this.resetGame();
@@ -253,10 +253,12 @@ export class GameEngine {
       if (this.transitionTimer <= 0) {
         this.stageNumber++;
         if (this.stageNumber > 2) {
-          this.stageNumber = 1; // loop back
+          this.gameState = 'victory';
+          this.soundManager.stopBGM();
+        } else {
+          this.loadLevel(this.stageNumber);
+          this.saveGame();
         }
-        this.loadLevel(this.stageNumber);
-        this.saveGame();
       }
     }
 
@@ -274,14 +276,22 @@ export class GameEngine {
       this.pauseJustPressed = true;
       if (this.gameState === 'playing') {
         this.gameState = 'paused';
-        this.soundManager.stopBGM();
+        this.soundManager.pauseBGM();
       } else if (this.gameState === 'paused') {
         this.gameState = 'playing';
-        this.soundManager.startBGM(this.level?.isUnderground() ? 'underground' : 'overworld');
+        this.soundManager.resumeBGM();
       }
     }
     if (!input.pause) {
       this.pauseJustPressed = false;
+    }
+
+    // Restart from gameover or victory screen
+    if (this.gameState === 'gameover' || this.gameState === 'victory') {
+      if (input.jumpPressed || input.pause) {
+        this.resetGame();
+        this.gameState = 'playing';
+      }
     }
 
     this.render();
@@ -405,6 +415,8 @@ export class GameEngine {
         facingRight: this.player.facingRight,
         onGround: this.player.onGround,
         jumpHoldTimer: this.player.jumpHoldTimer,
+        coyoteTimer: this.player.coyoteTimer,
+        jumpBuffer: this.player.jumpBuffer,
       };
       this.debugOverlay.draw(ctx, canvas.width, canvas.height, screenPlayer, entityCount, this.currentFPS);
     } else {

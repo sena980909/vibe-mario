@@ -2,9 +2,9 @@ import type { PlayerStateInterface, PlayerContext, StateTransition } from './Pla
 import type { InputState } from '../engine/InputManager';
 import type { Level } from '../world/Level';
 
-const WALK_SPEED = 200;
-const GRAVITY = 980;
-const MAX_FALL = 600;
+const WALK_SPEED = 220;
+const GRAVITY = 800;
+const MAX_FALL = 500;
 const JUMP_HOLD_FORCE = 200;
 const MAX_JUMP_HOLD = 0.3;
 
@@ -30,6 +30,10 @@ export class JumpingState implements PlayerStateInterface {
       ctx.jumpHoldTimer += dt;
       ctx.vy -= JUMP_HOLD_FORCE * dt;
     }
+
+    // Drain coyote and jump buffer timers while in air
+    ctx.coyoteTimer = 0;
+    ctx.jumpBuffer = Math.max(0, ctx.jumpBuffer - dt);
 
     ctx.vy += GRAVITY * dt;
     if (ctx.vy > MAX_FALL) ctx.vy = MAX_FALL;

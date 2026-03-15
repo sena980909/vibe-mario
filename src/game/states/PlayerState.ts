@@ -12,6 +12,8 @@ export interface PlayerContext {
   facingRight: boolean;
   onGround: boolean;
   jumpHoldTimer: number;
+  coyoteTimer: number;   // counts down from 0.1 when leaving ground
+  jumpBuffer: number;    // counts down from 0.1 when jump pressed in air
 }
 
 export type StateTransition = 'standing' | 'jumping' | 'falling' | 'hurt' | 'stay';

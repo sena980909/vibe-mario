@@ -3,9 +3,9 @@ import type { InputState } from '../engine/InputManager';
 import type { Level } from '../world/Level';
 
 const INVINCIBLE_DURATION = 1.5;
-const GRAVITY = 980;
-const MAX_FALL = 600;
-const WALK_SPEED = 200;
+const GRAVITY = 800;
+const MAX_FALL = 500;
+const WALK_SPEED = 220;
 
 export class HurtState implements PlayerStateInterface {
   name = 'hurt';

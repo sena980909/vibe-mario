@@ -43,9 +43,9 @@ export class GameOverScreen {
     ctx.fillStyle = '#ffdd00';
     ctx.fillText(`Best: ${highScore}`, cx, cy + 80);
 
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '14px monospace';
-    ctx.fillText('Reload page to play again', cx, cy + 130);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '18px monospace';
+    ctx.fillText(victory ? 'Press SPACE to return to menu' : 'Press SPACE to restart', cx, cy + 120);
   }
 
   private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string): void {

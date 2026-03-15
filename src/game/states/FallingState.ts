@@ -1,10 +1,12 @@
 import type { PlayerStateInterface, PlayerContext, StateTransition } from './PlayerState';
 import type { InputState } from '../engine/InputManager';
 import type { Level } from '../world/Level';
+import { eventBus } from '../engine/EventBus';
 
-const WALK_SPEED = 200;
-const GRAVITY = 980;
-const MAX_FALL = 600;
+const WALK_SPEED = 220;
+const GRAVITY = 800;
+const MAX_FALL = 500;
+const JUMP_VEL = -480;
 
 export class FallingState implements PlayerStateInterface {
   name = 'falling';
@@ -23,6 +25,25 @@ export class FallingState implements PlayerStateInterface {
       ctx.vx *= 0.95;
       if (Math.abs(ctx.vx) < 5) ctx.vx = 0;
     }
+
+    // If jump just pressed in air, set jump buffer
+    if (input.jumpPressed) {
+      ctx.jumpBuffer = 0.1;
+    }
+
+    // Coyote time: allow jump if coyoteTimer > 0 (just left ground) or jumpBuffer active
+    if (ctx.coyoteTimer > 0 && (input.jumpPressed || ctx.jumpBuffer > 0)) {
+      ctx.vy = JUMP_VEL;
+      ctx.jumpHoldTimer = 0;
+      ctx.coyoteTimer = 0;
+      ctx.jumpBuffer = 0;
+      eventBus.emit('playSound', 'jump');
+      return 'jumping';
+    }
+
+    // Decrement timers
+    ctx.coyoteTimer = Math.max(0, ctx.coyoteTimer - dt);
+    ctx.jumpBuffer = Math.max(0, ctx.jumpBuffer - dt);
 
     ctx.vy += GRAVITY * dt;
     if (ctx.vy > MAX_FALL) ctx.vy = MAX_FALL;

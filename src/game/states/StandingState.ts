@@ -3,10 +3,10 @@ import type { InputState } from '../engine/InputManager';
 import type { Level } from '../world/Level';
 import { eventBus } from '../engine/EventBus';
 
-const WALK_SPEED = 200;
-const GRAVITY = 980;
-const JUMP_VEL = -550;
-const MAX_FALL = 600;
+const WALK_SPEED = 220;
+const GRAVITY = 800;
+const JUMP_VEL = -480;
+const MAX_FALL = 500;
 
 export class StandingState implements PlayerStateInterface {
   name = 'standing';
@@ -26,9 +26,16 @@ export class StandingState implements PlayerStateInterface {
       if (Math.abs(ctx.vx) < 5) ctx.vx = 0;
     }
 
-    if (input.jumpPressed) {
+    // On ground: reset coyote timer and drain jump buffer
+    if (ctx.onGround) {
+      ctx.coyoteTimer = 0.1;
+    }
+
+    // Jump: triggered by input or buffered jump
+    if (input.jumpPressed || ctx.jumpBuffer > 0) {
       ctx.vy = JUMP_VEL;
       ctx.jumpHoldTimer = 0;
+      ctx.jumpBuffer = 0;
       eventBus.emit('playSound', 'jump');
       return 'jumping';
     }

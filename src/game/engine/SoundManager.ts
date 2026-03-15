@@ -78,6 +78,28 @@ export class SoundManager {
     this.bgmTimeouts = [];
   }
 
+  pauseBGM(): void {
+    this.bgmActive = false;
+    for (const t of this.bgmTimeouts) clearTimeout(t);
+    this.bgmTimeouts = [];
+    try {
+      const ctx = this.assetManager.getAudioContext();
+      if (ctx && ctx.state === 'running') ctx.suspend();
+    } catch {
+      // ignore
+    }
+  }
+
+  resumeBGM(): void {
+    try {
+      const ctx = this.assetManager.getAudioContext();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    } catch {
+      // ignore
+    }
+    if (this.bgmTrack) this.startBGM(this.bgmTrack);
+  }
+
   private scheduleBGMLoop(ctx: AudioContext, track: string, iteration: number): void {
     if (!this.bgmActive || this.bgmTrack !== track) return;
 

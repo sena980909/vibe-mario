@@ -20,6 +20,8 @@ export class Player implements PlayerContext {
   facingRight: boolean = true;
   onGround: boolean = false;
   jumpHoldTimer: number = 0;
+  coyoteTimer: number = 0;
+  jumpBuffer: number = 0;
   isPressingDown: boolean = false;
 
   private state: PlayerStateInterface;
@@ -64,7 +66,7 @@ export class Player implements PlayerContext {
   kill(): void {
     if (this._dead) return;
     this._dead = true;
-    this.vy = -400;
+    this.vy = -380;
     this.vx = 0;
     eventBus.emit('playerDied');
   }
@@ -119,7 +121,7 @@ export class Player implements PlayerContext {
 
   update(dt: number, level: Level): void {
     if (this._dead) {
-      this.vy += 980 * dt;
+      this.vy += 800 * dt;
       this.y += this.vy * dt;
       return;
     }
@@ -209,109 +211,134 @@ export class Player implements PlayerContext {
   }
 
   private drawSmallMario(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const w = this.width;
+    const h = this.height;
     const isFireMario = this.powerLevel === 2;
-    const hatColor = isFireMario ? '#ffffff' : '#cc0000';
-    const bodyColor = isFireMario ? '#ffffff' : '#cc0000';
-    const overallColor = isFireMario ? '#cc0000' : '#0000cc';
-    const skinColor = '#ffcc99';
+    const bodyColor = isFireMario ? '#ffffff' : '#e52213';
+    const overallColor = isFireMario ? '#e52213' : '#0052a5';
+    const walkFrame = this.walkFrame;
 
-    // Hat
-    ctx.fillStyle = hatColor;
-    ctx.fillRect(x + 3, y, w - 6, 4);
-    ctx.fillRect(x + 1, y + 3, w - 2, 3);
+    // Hat (red)
+    ctx.fillStyle = '#e52213';
+    ctx.fillRect(x + 2, y,   12, 3);   // hat top
+    ctx.fillRect(x,     y + 3,  16, 3);  // hat brim
 
-    // Face
-    ctx.fillStyle = skinColor;
-    ctx.fillRect(x + 2, y + 6, w - 4, 4);
+    // Hair/Sideburn (dark brown)
+    ctx.fillStyle = '#6b3a2a';
+    ctx.fillRect(x + 1, y + 5, 3, 2);
 
-    // Eye
+    // Face (skin)
+    ctx.fillStyle = '#fba876';
+    ctx.fillRect(x + 2, y + 6, 11, 5);
+
+    // Eye (black)
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + w - 6, y + 7, 2, 2);
+    ctx.fillRect(x + 9, y + 7, 3, 2);
 
-    // Mustache
-    ctx.fillStyle = '#4a2400';
-    ctx.fillRect(x + 2, y + 9, w - 5, 1);
+    // Mustache (dark brown)
+    ctx.fillStyle = '#6b3a2a';
+    ctx.fillRect(x + 3, y + 10, 9, 2);
 
-    // Body/overalls
+    // Body/shirt
     ctx.fillStyle = bodyColor;
-    ctx.fillRect(x + 3, y + 10, w - 6, 2);
-    ctx.fillStyle = overallColor;
-    ctx.fillRect(x + 2, y + 11, w - 4, 2);
+    ctx.fillRect(x + 3, y + 12, 10, 2);
 
-    // Shoes
-    ctx.fillStyle = '#4a2400';
-    if (this.walkFrame === 1) {
-      ctx.fillRect(x + 1, y + 13, 5, 3);
-      ctx.fillRect(x + w - 4, y + 12, 5, 3);
+    // Overalls
+    ctx.fillStyle = overallColor;
+    ctx.fillRect(x + 1, y + 11, 14, 4);  // straps area
+
+    // Legs
+    ctx.fillStyle = overallColor;
+    if (walkFrame === 0) {
+      ctx.fillRect(x + 2,  y + 13, 5, 3);
+      ctx.fillRect(x + 9,  y + 13, 5, 3);
+    } else if (walkFrame === 1) {
+      ctx.fillRect(x + 2,  y + 12, 5, 4);
+      ctx.fillRect(x + 9,  y + 14, 5, 2);
     } else {
-      ctx.fillRect(x + 1, y + 12, 5, 4);
-      ctx.fillRect(x + w - 5, y + 12, 5, 4);
+      ctx.fillRect(x + 2,  y + 14, 5, 2);
+      ctx.fillRect(x + 9,  y + 12, 5, 4);
+    }
+
+    // Shoes (dark brown) - cap at y+h-1
+    ctx.fillStyle = '#3b1e08';
+    const shoeY = Math.min(y + 15, y + h - 1);
+    if (walkFrame === 0) {
+      ctx.fillRect(x + 1, shoeY, 6, 1);
+      ctx.fillRect(x + 8, shoeY, 6, 1);
+    } else if (walkFrame === 1) {
+      ctx.fillRect(x,     shoeY, 7, 1);
+      ctx.fillRect(x + 9, shoeY, 5, 1);
+    } else {
+      ctx.fillRect(x + 1, shoeY, 5, 1);
+      ctx.fillRect(x + 8, shoeY, 7, 1);
     }
   }
 
   private drawSuperMario(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     const w = this.width;
-    const h = this.height;
     const isFireMario = this.powerLevel === 2;
-    const hatColor = isFireMario ? '#ffffff' : '#cc0000';
-    const bodyColor = isFireMario ? '#ffffff' : '#cc0000';
-    const overallColor = isFireMario ? '#cc0000' : '#0000cc';
-    const skinColor = '#ffcc99';
+    const bodyColor = isFireMario ? '#ffffff' : '#e52213';
+    const overallColor = isFireMario ? '#e52213' : '#0052a5';
+    const walkFrame = this.walkFrame;
 
     // Hat
-    ctx.fillStyle = hatColor;
-    ctx.fillRect(x + 3, y, w - 6, 5);
-    ctx.fillRect(x, y + 3, w, 5);
+    ctx.fillStyle = '#e52213';
+    ctx.fillRect(x + 2, y,    12, 5);  // top
+    ctx.fillRect(x,     y + 5,  16, 5);  // brim
 
-    // Face
-    ctx.fillStyle = skinColor;
-    ctx.fillRect(x + 2, y + 8, w - 4, 7);
+    // Hair
+    ctx.fillStyle = '#6b3a2a';
+    ctx.fillRect(x + 1, y + 9, 3, 3);
+
+    // Face (skin)
+    ctx.fillStyle = '#fba876';
+    ctx.fillRect(x + 2, y + 10, 11, 7);
 
     // Eye
     ctx.fillStyle = '#000';
-    ctx.fillRect(x + w - 6, y + 10, 3, 3);
+    ctx.fillRect(x + 9, y + 11, 3, 3);
 
     // Mustache
-    ctx.fillStyle = '#4a2400';
-    ctx.fillRect(x + 2, y + 13, w - 5, 2);
+    ctx.fillStyle = '#6b3a2a';
+    ctx.fillRect(x + 3, y + 15, 9, 3);
 
-    // Body
+    // Shirt (red/white)
     ctx.fillStyle = bodyColor;
-    ctx.fillRect(x + 3, y + 15, w - 6, 4);
+    ctx.fillRect(x + 2, y + 17, 12, 4);
 
-    // Overalls
+    // Overalls (blue/red)
     ctx.fillStyle = overallColor;
-    ctx.fillRect(x + 1, y + 18, w - 2, 7);
+    ctx.fillRect(x + 1, y + 17, 14, 8);  // overall body
     // Straps
-    ctx.fillRect(x + 3, y + 15, 3, 4);
-    ctx.fillRect(x + w - 6, y + 15, 3, 4);
+    ctx.fillRect(x + 3, y + 17, 3, 5);
+    ctx.fillRect(x + 10, y + 17, 3, 5);
 
-    // Arms
-    ctx.fillStyle = skinColor;
-    if (this.walkFrame === 1) {
-      ctx.fillRect(x - 2, y + 15, 3, 7);
-      ctx.fillRect(x + w - 1, y + 18, 3, 7);
+    // Arms (skin)
+    ctx.fillStyle = '#fba876';
+    if (walkFrame === 1) {
+      ctx.fillRect(x - 2, y + 17, 3, 9);
+      ctx.fillRect(x + w - 1, y + 21, 3, 9);
     } else {
-      ctx.fillRect(x - 2, y + 18, 3, 7);
-      ctx.fillRect(x + w - 1, y + 15, 3, 7);
+      ctx.fillRect(x - 2, y + 21, 3, 9);
+      ctx.fillRect(x + w - 1, y + 17, 3, 9);
     }
 
-    // Legs
+    // Legs (overalls)
     ctx.fillStyle = overallColor;
-    if (this.walkFrame === 0) {
-      ctx.fillRect(x + 1, y + 25, 6, 3);
-      ctx.fillRect(x + w - 7, y + 25, 6, 3);
-    } else if (this.walkFrame === 1) {
-      ctx.fillRect(x + 1, y + 23, 6, 3);
-      ctx.fillRect(x + w - 7, y + 27, 6, 3);
+    if (walkFrame === 0) {
+      ctx.fillRect(x + 2, y + 25, 5, 5);
+      ctx.fillRect(x + 9, y + 25, 5, 5);
+    } else if (walkFrame === 1) {
+      ctx.fillRect(x + 2, y + 22, 5, 7);
+      ctx.fillRect(x + 9, y + 27, 5, 3);
     } else {
-      ctx.fillRect(x + 1, y + 27, 6, 3);
-      ctx.fillRect(x + w - 7, y + 23, 6, 3);
+      ctx.fillRect(x + 2, y + 27, 5, 3);
+      ctx.fillRect(x + 9, y + 22, 5, 7);
     }
 
-    // Shoes
-    ctx.fillStyle = '#4a2400';
-    ctx.fillRect(x, y + h - 4, w - 1, 4);
+    // Shoes (dark brown)
+    ctx.fillStyle = '#3b1e08';
+    ctx.fillRect(x,     y + 28, 8, 4);
+    ctx.fillRect(x + 8, y + 28, 8, 4);
   }
 }
